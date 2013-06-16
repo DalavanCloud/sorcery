@@ -29,10 +29,18 @@ module Sorcery
         module InstanceMethods
           protected
 
+          # caching methods
+          def get_provider provider_name
+            @provider ||= Config.send(provider_name)
+          end
+          def get_user_hash provider
+            @user_hash ||= provider.get_user_hash()
+          end
+
           # sends user to authenticate at the provider's website.
           # after authentication the user is redirected to the callback defined in the provider config
           def login_at(provider_name, args = {})
-            provider = Config.send(provider_name)
+            provider = get_provider(provider_name)
             provider.original_callback_url ||= provider.callback_url
             if provider.original_callback_url.present? && provider.original_callback_url[0] == '/'
               uri = URI.parse(request.url.gsub(/\?.*$/,''))
@@ -51,9 +59,9 @@ module Sorcery
 
           # tries to login the user from provider's callback
           def login_from(provider_name)
-            provider = Config.send(provider_name)
+            provider = get_provider(provider_name)
             provider.process_callback(params,session)
-            user_hash = provider.get_user_hash
+            user_hash = get_user_hash(provider)
             if user = user_class.load_from_provider(provider_name,user_hash[:uid].to_s)
               return_to_url = session[:return_to_url]
               reset_session
@@ -66,16 +74,16 @@ module Sorcery
 
           # get provider access account
           def access_token(provider_name)
-            provider = Config.send(provider_name)
+            provider = get_provider(provider_name)
             provider.access_token
           end
 
           # If user is logged, he can add all available providers into his account
           def add_provider_to_user(provider_name)
             provider_name = provider_name.to_sym
-            provider = Config.send(provider_name)
+            provider = get_provider(provider_name)
             provider.process_callback(params,session)
-            user_hash = provider.get_user_hash
+            user_hash = get_user_hash(provider)
             config = user_class.sorcery_config
 
             # first check to see if user has a particular authentication already
@@ -94,8 +102,8 @@ module Sorcery
           # we store provider/user infos into a session and can be rendered into registration form
           def create_and_validate_from(provider_name)
             provider_name = provider_name.to_sym
-            provider = Config.send(provider_name)
-            user_hash = provider.get_user_hash
+            provider = get_provider(provider_name)
+            user_hash = get_user_hash(provider)
             config = user_class.sorcery_config
 
             attrs = user_attrs(provider.user_info_mapping, user_hash)
@@ -129,8 +137,8 @@ module Sorcery
           #
           def create_from(provider_name)
             provider_name = provider_name.to_sym
-            provider = Config.send(provider_name)
-            user_hash = provider.get_user_hash
+            provider = get_provider(provider_name)
+            user_hash = get_user_hash(provider)
             config = user_class.sorcery_config
 
             attrs = user_attrs(provider.user_info_mapping, user_hash)
