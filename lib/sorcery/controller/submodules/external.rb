@@ -54,6 +54,7 @@ module Sorcery
             provider = Config.send(provider_name)
             provider.process_callback(params,session)
             user_hash = provider.get_user_hash
+            raise user_hash
             if user = user_class.load_from_provider(provider_name,user_hash[:uid].to_s)
               return_to_url = session[:return_to_url]
               reset_session
